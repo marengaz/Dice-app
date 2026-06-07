@@ -122,35 +122,18 @@ object SoundEngine {
                 .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                 .build()
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val builder = AudioTrack.Builder()
-                    .setAudioAttributes(audioAttributes)
-                    .setAudioFormat(audioFormat)
-                    .setBufferSizeInBytes(bufferSize)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
+            val builder = AudioTrack.Builder()
+                .setAudioAttributes(audioAttributes)
+                .setAudioFormat(audioFormat)
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+
+            if (Build.VERSION.SDK_INT >= 34) {
                 appContext?.let {
                     builder.setContext(it)
                 }
-                audioTrack = builder.build()
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                audioTrack = AudioTrack.Builder()
-                    .setAudioAttributes(audioAttributes)
-                    .setAudioFormat(audioFormat)
-                    .setBufferSizeInBytes(bufferSize)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
-                    .build()
-            } else {
-                @Suppress("DEPRECATION")
-                audioTrack = AudioTrack(
-                    audioAttributes,
-                    audioFormat,
-                    bufferSize,
-                    AudioTrack.MODE_STATIC,
-                    AudioManager.AUDIO_SESSION_ID_GENERATE
-                )
             }
+            audioTrack = builder.build()
 
             audioTrack.write(pcmData, 0, pcmData.size)
             audioTrack.play()
