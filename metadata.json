@@ -1,0 +1,6 @@
+{
+  "name": "Vibrant Dice",
+  "description": "A simple, full screen dice app for kids that features bright colors, engaging sounds, and playful tap-to-roll physics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

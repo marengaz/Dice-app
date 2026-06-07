@@ -1,0 +1,96 @@
+name: Android CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release Android App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required by github-tag-action to generate a accurate change log from previous tags
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission for Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Run Lint Checks
+        run: ./gradlew lintDebug
+
+      - name: Run Unit & Robolectric Tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build Debug & Unsigned Release APKs
+        run: ./gradlew assembleDebug assembleRelease
+
+      - name: Upload Workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Calculate Semantic Version and Generate Tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+
+      - name: Package Release Clean Installers
+        run: |
+          mkdir -p release-artifacts
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/KidsDice-v${{ steps.tag_version.outputs.new_version }}-debug.apk
+          fi
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp app/build/outputs/apk/release/app-release.apk release-artifacts/KidsDice-v${{ steps.tag_version.outputs.new_version }}-release.apk
+          elif [ -f "app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+            cp app/build/outputs/apk/release/app-release-unsigned.apk release-artifacts/KidsDice-v${{ steps.tag_version.outputs.new_version }}-release.apk
+          fi
+
+      - name: Create or Update GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: |
+            ## Kids Dice Release v${{ steps.tag_version.outputs.new_version }} 🎲
+            
+            We are excited to share a new version of Kids Dice! Let the rolling continue!
+            
+            ### 📱 Sideload / Install Instructions
+            For quick install on your or your wife's phone:
+            1. Download **`KidsDice-v${{ steps.tag_version.outputs.new_version }}-debug.apk`** from below on your Android device. (This is pre-signed with the debug key and installs directly).
+            2. Open the downloaded file to begin installation.
+            3. If Android displays a security request, allow the installer/browser to "Install unknown apps" or "Install unknown legacy apps".
+            4. Once installed, launch the application from your home screen! 🎉
+            
+            ---
+            
+            ### 📝 What's Changed
+            ${{ steps.tag_version.outputs.changelog }}
+          draft: false
+          prerelease: false
+          files: |
+            release-artifacts/KidsDice-v${{ steps.tag_version.outputs.new_version }}-debug.apk
+            release-artifacts/KidsDice-v${{ steps.tag_version.outputs.new_version }}-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
